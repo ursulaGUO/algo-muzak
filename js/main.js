@@ -8,7 +8,7 @@ function play_tone(time, duration, volume) {
   const dur = duration || 0.25;
   const vol = volume || 0.2;
   const param = {
-    type: 'sawtooth',
+    type: 'sine',
     frequency: 440
   };
   
@@ -55,17 +55,18 @@ function play_tone(time, duration, volume) {
   //fft.connect(ctx.destination);
 
 
-  for (let i = 0; i < 80; i++) {
-    const time = ctx.currentTime + (i/4);
-    const i_major = get_random(0,7);
-    const i_major_key = minor[i_major];
-    const pitch = keys[i_major_key];
-    const harmony_key1 = harmony_first(i_major_key);
-    const harmony_key2 = harmony_second(i_major_key);
-    tone1.frequency.setValueAtTime(keys[harmony_key1], time);
-    tone2.frequency.setValueAtTime(keys[harmony_key2], time)
-    //const freq = Math.random() * 600 - 150;
-    tone.frequency.setValueAtTime(pitch, time);
+  for (let i = 0; i < 80;) {
+    for (let j = 0; j < 13; j++) {
+      const time = ctx.currentTime + (i/4);
+      const pitch = keys[j];
+      const harmony_key1 = harmony_first(j);
+      const harmony_key2 = harmony_second(j);
+      tone1.frequency.setValueAtTime(keys[harmony_key1], time);
+      tone2.frequency.setValueAtTime(keys[harmony_key2], time)
+      //const freq = Math.random() * 600 - 150;
+      tone.frequency.setValueAtTime(pitch, time);
+      i += 1;
+    }
   }
 
   // for (let i = 0; i < 4; i ++) {
