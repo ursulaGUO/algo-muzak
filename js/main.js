@@ -1,226 +1,308 @@
 const ctx = new (window.AudioContext || window.webkitAudioContext)();
-const ctx1 = new (window.AudioContext || window.webkitAudioContext)();
-const ctx2 = new (window.AudioContext || window.webkitAudioContext)();
-const beat = new (window.AudioContext || window.webkitAudioContext)();
+const beat_ctx = new (window.AudioContext || window.webkitAudioContext)();
+const fft = new AnalyserNode(ctx, { fftSize: 2048 });
+createWaveCanvas({ element: 'section', analyser: fft });
 
+/*tone_set sets the paramenters for a new tone osc*/
+function tone_set (type, pitch, time, duration) {
+	const t = time || ctx.currentTime;
+	const dur = duration || 1;
+	const osc = new OscillatorNode(ctx, {
+		type: type || "sine",
+		frequency: pitch || 440
+	});
+	const lvl = new GainNode(ctx, { gain: 0.001 });
+
+	osc.connect(lvl);
+	lvl.connect(ctx.destination);
+	lvl.connect(fft);
+	osc.start(t);
+	osc.stop(t + dur);
+	adsr({param: lvl.gain, duration: dur, time: t});
+}
+
+/*beat_set sets the paramenters for a new beat osc*/
+function beat_set (type, pitch, time, duration) {
+	const t = time || beat_ctx.currentTime;
+	const dur = duration || 1;
+	const osc = new OscillatorNode(beat_ctx, {
+		type: type || "square",
+		frequency: pitch || 170
+	});
+	const lvl = new GainNode(beat_ctx, { gain: 0.001 });
+
+	osc.connect(lvl);
+	lvl.connect(beat_ctx.destination);
+	//lvl.connect(fft);
+	osc.start(t);
+	osc.stop(t + dur);
+	//adsr({param: lvl.gain, duration: dur, time: t});
+}
+
+/*adsr implements the adsr envelope with specified parameters */
 function adsr (opts) {
-  const param = opts.param;
-  const peak = opts.peak || 1;
-  const hold = opts.hold || 0.8;
-  const time = opts.time || ctx.currentTime;
-  const dur = opts.duration || 1;
-  const a = opts.attack || dur * 0.2;
-  const d = opts.decay || dur * 0.2;
-  const s = opts.sustain || dur * 0.3;
-  const r = opts.release || dur * 0.3;
+	const param = opts.param;
+	const peak = opts.peak || 1;
+	const hold = opts.hold || 0.7;
+	const time = opts.time || ctx.currentTime;
+	const dur = opts.duration || 0.25;
+	const a = opts.attack || dur * 0.2;
+	const d = opts.decay || dur * 0.1;
+	const s = opts.sustain || dur * 0.5;
+	const r = opts.release || dur * 0.2;
 
-  const initVal = param.value;
-  param.setValueAtTime(initVal, time);
-  param.exponentialRampToValueAtTime(peak, time+a);
-  param.linearRampToValueAtTime(hold, time+a+d);
-  param.exponentialRampToValueAtTime(hold, time+a+d+s);
-  param.linearRampToValueAtTime(initVal, time+a+d+s+r);
+	const initVal = param.value;
+	param.setValueAtTime(initVal, time);
+	param.linearRampToValueAtTime(peak, time+a);
+	param.linearRampToValueAtTime(hold, time+a+d);
+	param.linearRampToValueAtTime(hold, time+a+d+s);
+	param.linearRampToValueAtTime(initVal, time+a+d+s+r);
 }
 
-const param_i = {
-  type: 'sine',
-  frequency: 400
-};
-
-const param_beat = {
-  type: 'sine',
-  frequency: 170
-};
-
-function play_tone(time, duration, volume) {
-  const t = time || ctx1.currentTime;
-  const dur = duration || 0.25;
-  const vol = volume || 0.2;
-  
-  
-  const tone = new OscillatorNode(ctx, param_i);
-  const tone1 = new OscillatorNode(ctx1, param_i);
-  const tone2 = new OscillatorNode(ctx2, param_i);
-  const beat_tone = new OscillatorNode(beat, param_beat);
-  
-  
-  // processor nodes
-  const lvl = new GainNode(ctx, {
-    gain: vol 
-  }); 
-  const lvl1 = new GainNode(ctx1, {
-    gain: vol 
-  }); 
-  const lvl2 = new GainNode(ctx2, {
-    gain: vol 
-  }); 
-  const beat_lvl = new GainNode(beat, {
-    gain: 0.1
-  }); 
-  
-  
-  
-  
-  // analyzer nodes
-  const fft = new AnalyserNode(ctx, { fftSize: 2048 });
-  const fft1 = new AnalyserNode(ctx1, { fftSize: 2048 });
-  const fft2 = new AnalyserNode(ctx2, { fftSize: 2048 });
-  const beat_fft = new AnalyserNode(beat, { fftSize: 2048 });
-  //const fft1 = new AnalyserNode(ctx1, { fftSize: 2048 });
-  
-  
-  
-  // connect and play
-  tone.connect(lvl);
-  lvl.connect(fft);
-  fft.connect(ctx.destination);
-
-  tone1.connect(lvl1);
-  lvl1.connect(fft1);
-  fft1.connect(ctx1.destination);
-
-  tone2.connect(lvl2);
-  lvl2.connect(fft2);
-  fft2.connect(ctx2.destination);
-  //lvl1.connect(ctx1.destination);
-  //fft.connect(ctx.destination);
-
-  beat_tone.connect(beat_lvl);
-  beat_lvl.connect(beat_fft);
-  beat_fft.connect(beat.destination);
-
-
-  // for (let i = 0; i < 16;) {
-  //   for (let j = 0; j < 13; j++) {
-  //     const time = ctx.currentTime + (i/4);
-  //     const pitch = keys[j];
-  //     const harmony_key1 = harmony_first(j);
-  //     const harmony_key2 = harmony_second(j);
-  //     tone1.frequency.setValueAtTime(keys[harmony_key1], time);
-  //     tone2.frequency.setValueAtTime(keys[harmony_key2], time)
-  //     //const freq = Math.random() * 600 - 150;
-  //     tone.frequency.setValueAtTime(pitch, time);
-  //     i += 1;
-  //   }
-  // }
-
-  let time_t = 1;
-  let i = 0;
-  let b = 0;
-
-  //climbing scale up
-  while (i < 13) {
-    tone1.frequency.setValueAtTime(keys[harmony_first(i)], time_t);
-    tone2.frequency.setValueAtTime(keys[harmony_second(i)], time_t);
-    tone.frequency.setValueAtTime(keys[i], time_t);
-    if (time_t % 1 == 0) {
-      beat_tone.frequency.setValueAtTime(200, time_t);
-    } else {
-      beat_tone.frequency.setValueAtTime(0, time_t);
-    }
-    i += 1;
-    time_t += 1/4;
-  }
-
-  
-  
-  // const p = 0.8 // peak value for all tones
-  // const v = 0.7 // sustained value for all tones
-
-  // opt1 = {param: play, peak: p, hold: v};
-
-  // adsr(lvl.gain, p,v, ctx.currentTime);
-  // adsr(lvl1.gain, p,v, ctx1.currentTime);
-  // adsr(lvl2.gain, p,v, ctx2.currentTime);
-
-  //climb scale down
-  let j = 11;
-  while (j >= 0) {
-    tone1.frequency.setValueAtTime(keys[harmony_first(j)], time_t);
-    tone2.frequency.setValueAtTime(keys[harmony_second(j)], time_t);
-    tone.frequency.setValueAtTime(keys[j], time_t);
-    j -= 1;
-    time_t += 1/8;
-  }
-
-  tone.start(ctx.currentTime);
-  tone.stop(ctx.currentTime + 12);
-
-  tone1.start(ctx1.currentTime);
-  tone1.stop(ctx1.currentTime + 12);
-
-  tone2.start(ctx2.currentTime);
-  tone2.stop(ctx2.currentTime + 12);
-
-  beat_tone.start(beat.currentTime);
-  beat_tone.stop(beat.currentTime + 12);
-
-
-  createWaveCanvas({ element: 'section', analyser: fft });
-  createWaveCanvas({ element: 'section', analyser: fft1 });
-  createWaveCanvas({ element: 'section', analyser: fft2 });
-}
-
-
-
-
-const major = [0,2,4,5,7,9,11,12];
-const minor = [0,2,3,5,7,8,10,12];
-const keys = [
-  400.0, //0A
-  466.0, //1A#
-  493.0, //2B
-  523.0, //3C
-  554.0, //4C#
-  587.0, //5D
-  622.0, //6D#
-  659.0, //7E
-  698.0, //8F
-  739.0, //9F#
-  783.0, //10G   
-  830.0, //11G#
-
-  880.0, //12A   
-  932.0, //13A#
-  987.0, //13B
-  1046.0, //14C
-  1108.0, //15C#
-  1174.0, //16D
-  1244.0, //17D#
-  1318.0, //18E
-  1396.0, //19F
-  1479.0, //20F#
-  1567.0, //21G
-  1661.0, //22g#
-];
-
-//const beat = 200;
-
-
-
-//given an index of the key, return a nearest higher harmony note
-function harmony_first(index) {
-  return (index + 3) % 24;
-}
-
-//given an index of the key, return a second higher harmony note
-function harmony_second(index) {
-  return (index + 3) % 24;
-}
-
-
-function step(rootFreq, steps) {
-  let tr2 = Math.pow(2,1/12);
-  let rnd = rootFeq * Math.pow(tr2,steps);
-  return Math.round(rnd * 100) / 100;
-}
-
-
+/*get_random produces a random integer number between min and max */
 function get_random(min, max) {
-  return Math.floor(Math.random() * (max - min) + min);
+	return Math.round(Math.random() * (max - min) + min);
+}
+
+/*  =========== Constants and variables ============= */
+const start_time = 1;
+const major = [0, 2, 4, 5, 7, 9, 11, 12];
+const minor = [0, 2, 3, 5, 7, 8, 10, 12];
+const tempo = 80 * 2 // bpm
+const beat = 60/tempo;
+const beatLengths = [beat, beat/3, beat/2, beat*2];
+const bar  = beat * 4;
+const base = [440, 329, 349, 392]; //contains F G E A
+let start_node_i = get_random(0,3);
+let start_node = base[start_node_i];
+console.log(start_node);
+const scale = minor;
+const notes = [
+	0, 0, 2, 2, 4, 4, 2, 2, 0, 0
+]
+let end_time = 0.0;
+const A_harm = [0,3,7,10]; 
+const F_harm = [0,4,7,11]; 
+const G_harm = [0,3,7,12]; 
+const E_harm = [0,3,7,10];
+const arrA = [0, 1, 3];
+const arrF = [0, 2, 4];
+const arrG = [0, 2, 3];
+const arrE = [0, 1, 3];
+/*  =========== Constants and variables ============= */
+
+
+
+/*step function returns the frequency of the not that is n steps up the root 
+frequency*/
+function step (root, steps) {
+	let tr2 = Math.pow(2, 1 / 12);
+	let rnd = root * Math.pow(tr2, steps);
+	return Math.round(rnd * 100) / 100;
 }
 
 
-play_tone();
+/*harmony_first function returns the frequency of the first harmony note 
+frequency of a given root note*/
+function harmony_first (root) {
+  return step(root, 4);
+}
 
+/*harmony_second function returns the frequency of the first harmony note 
+frequency of a given root note*/
+function harmony_second (root) {
+  return step(root, 8);
+}
+
+function count_step(root_note, new_note) {
+	let c = Math.pow(2, 1 / 12);
+	let div = new_note / root_note;
+	return Math.round(Math.log(div) / Math.log(c));
+}
+
+/*minor_tf returns true if a root is in the minor, false if not*/
+function minor_tf(root) {
+	steps = count_step(440,root);
+	if (steps > 0) {
+		while (steps >= 12) {
+			steps -= 12;
+		}
+	} else {
+		while (steps < 0) {
+			steps += 12;
+		}
+	}
+	for (let i = 0; i < major.length; i += 1) {
+		if (steps == minor[i]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/*major_step steps only to major keyes*/ 
+function minor_step (root, steps) {
+	let i = 0;
+	let new_note = step(root, 0);
+	while (i < steps) {
+		new_note = step(new_note,1);
+		if (minor_tf(new_note)) {
+			i += 1;
+		}
+	}
+	return new_note;
+}
+
+/*beat_play function creates the background beat with given number of bars*/
+function beat_play(num_bars, start_beat_time) {
+	let flag = 0;
+	for(let i = 0; i < num_bars * 4; i++) {
+		const finished_beats = i * beat;
+		const time = finished_beats + start_beat_time;
+		end_time = time + 1/4;
+		if (flag % 4 == 0 || flag % 4 == 1) {
+			tone_set('sine', 130, time, beat/2);
+		} else if (flag % 4 == 2){
+			tone_set('sine', 220, time, beat/4);
+		}
+		flag += 1;
+	}
+}
+
+
+/*plays harmony of 4 or 3 notes with given root and start time*/
+function harmony_4_3_play (root, harmony_start_time, repeat) {
+	len = repeat;
+
+	let in_one_scale = count_step(440, root) % 12;
+	if (in_one_scale < 0) {
+		in_one_scale += 12;
+	} else if (in_one_scale >= 12) {
+		in_one_scale -= 12;
+	}
+
+
+	if (in_one_scale == 0) {//A
+		for (let i = 0; i < len; i += 1) { 
+			const steps = A_harm[i];
+			tone_set('sine', step(root, steps), harmony_start_time, beat/2);
+		}
+	} else if (in_one_scale == 8 ) { //F
+		for (let i = 0; i < len; i += 1) {
+			const steps = F_harm[i];
+			tone_set('sine', step(root, steps), harmony_start_time, beat/2);
+		}
+	} else if (in_one_scale == 10 ) { //G
+		for (let i = 0; i < len; i += 1) {
+			const steps = G_harm[i];
+			tone_set('sine', step(root, steps), harmony_start_time, beat/2);
+		}
+	} else if (in_one_scale == 7) { //G E
+		for (let i = 0; i < len; i += 1) {
+			const steps = E_harm[i];
+			tone_set('sine', step(root, steps), harmony_start_time, beat/2);
+		}
+	}
+
+
+}
+
+
+
+/*scale_3_play plays 3 consecutive minor notes and goes back to original note */
+function scale_3_play(root_note, start_s3p_time, arr){
+	const time = start_s3p_time;
+	let i = 0;
+	let j = 0;
+	for (; i < arr.length; i += 1) {
+		tone_set('sine', step(root_note, arr[i]), time + beat * i, beat/2);
+		if (i == arr.length - 1) {
+			for (; j < 3; j += 1) {
+				harmony_4_3_play(root_note, time + beat * i + beat * j, 4);
+			}
+		}
+	}
+	harmony_4_3_play(root_note, time + beat * (i + j + 1) , 3);
+}
+
+function node_to_arr(freq) {
+	if (freq == 329) {
+		return arrE;
+	} else if (freq == 440) {
+		return arrA;
+	} else if (freq == 349) {
+		return arrF;
+	} else if (freq == 392) {
+		return arrG;
+	}
+}
+
+/*jump performs a pattern of keys*/ 
+//total time is 2 bars
+function jump1(root, start_time) {
+	tone_set('sine', minor_step(root, 0), start_time, beat/4);
+	tone_set('sine', minor_step(root, 4), start_time + beat * 0.5, beat/2);
+	tone_set('sine', minor_step(root, 4), start_time + beat * 1, beat);
+	tone_set('sine', minor_step(root, 2), start_time + beat * 1.5, beat/4);
+	tone_set('sine', minor_step(root, 3), start_time + beat * 2, beat/2);
+	tone_set('sine', minor_step(root, 2), start_time + beat * 2.5, beat/2);
+	tone_set('sine', minor_step(root, 1), start_time + beat * 3, beat/2);
+	tone_set('sine', minor_step(root, 0), start_time + beat * 3.5, beat/2);
+}
+
+function jump3(root, start_time) {
+	tone_set('sine', minor_step(root, 0), start_time, beat/4);
+	tone_set('sine', minor_step(root, 4), start_time + beat * 0.5, beat/2);
+	tone_set('sine', minor_step(root, 4), start_time + beat * 1, beat);
+	tone_set('sine', minor_step(root, 2), start_time + beat * 1.5, beat/4);
+	tone_set('sine', minor_step(root, 3), start_time + beat * 2, beat/2);
+	tone_set('sine', minor_step(root, 2), start_time + beat * 2.5, beat/2);
+	tone_set('sine', minor_step(root, 1), start_time + beat * 3, beat/2);
+	tone_set('sine', minor_step(root, -1), start_time + beat * 3.5, beat/2);
+	tone_set('sine', minor_step(root, 3), start_time + beat * 3, beat/2);
+	tone_set('sine', minor_step(root, -1), start_time + beat * 3.5, beat/2);
+	tone_set('sine', minor_step(root, 0), start_time, beat/4);
+}
+
+//total time 1 bar
+function jump2(root, start_time, j) {
+	tone_set('sine', minor_step(root, 0), start_time, beat/8);
+	tone_set('sine', minor_step(root, j), start_time + beat * 0.5, beat);
+	tone_set('sine', minor_step(root, 0), start_time + beat * 1.5, beat/8);
+	tone_set('sine', minor_step(root, j), start_time + beat * 2, beat);
+	tone_set('sine', minor_step(root, 0), start_time + beat * 3, beat/8);
+	tone_set('sine', minor_step(root, j), start_time + beat * 3.5, beat);
+}
+
+function intro1(root, start_time) {
+	tone_set('sine', minor_step(root, 0), start_time, beat/4);
+	tone_set('sine', minor_step(root, 1), start_time + beat * 1, beat/2);
+	tone_set('sine', minor_step(root, 0), start_time + beat * 2, beat/4);
+	tone_set('sine', minor_step(root, 1), start_time + beat * 2 + bar, beat * 2);
+	tone_set('sine', minor_step(root, 0), start_time + beat * 4 + bar, beat/2);
+}
+
+function whole_song() {
+	root = minor_step(440, get_random(0,6));
+	intro1(root, start_time);
+	intro1(root, start_time + bar * 2 + beat * 4);
+	jump2(root, start_time + bar * 5 + beat * 8, 3);
+	jump2(minor_step(root,1), start_time + bar * 7 + beat * 8, 3);
+	scale_3_play(start_node, start_time + bar * 5 + beat * 8, node_to_arr(start_node));
+	scale_3_play(base[(start_node_i + 1) % 4], start_time + bar * 7 + beat * 8, node_to_arr(start_node));
+	// scale_3_play(start_node, start_time + bar * 8, node_to_arr(start_node));
+	// scale_3_play(start_node, start_time + bar * 8, node_to_arr(start_node));
+	jump1(root, start_time + bar * 9 + beat * 8);
+	
+}
+
+
+whole_song();
+beat_play(bar * 11,start_time);
+
+
+
+
+
+end_time += 0.5 * beat;
 
