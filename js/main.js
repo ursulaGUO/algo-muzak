@@ -1,7 +1,6 @@
 const ctx = new (window.AudioContext || window.webkitAudioContext)();
-const beat_ctx = new (window.AudioContext || window.webkitAudioContext)();
 const fft = new AnalyserNode(ctx, { fftSize: 2048 });
-createWaveCanvas({ element: 'section', analyser: fft });
+
 
 /*tone_set sets the paramenters for a new tone osc*/
 function tone_set (type, pitch, time, duration) {
@@ -21,23 +20,6 @@ function tone_set (type, pitch, time, duration) {
 	adsr({param: lvl.gain, duration: dur, time: t});
 }
 
-/*beat_set sets the paramenters for a new beat osc*/
-function beat_set (type, pitch, time, duration) {
-	const t = time || beat_ctx.currentTime;
-	const dur = duration || 1;
-	const osc = new OscillatorNode(beat_ctx, {
-		type: type || "square",
-		frequency: pitch || 170
-	});
-	const lvl = new GainNode(beat_ctx, { gain: 0.001 });
-
-	osc.connect(lvl);
-	lvl.connect(beat_ctx.destination);
-	//lvl.connect(fft);
-	osc.start(t);
-	osc.stop(t + dur);
-	//adsr({param: lvl.gain, duration: dur, time: t});
-}
 
 /*adsr implements the adsr envelope with specified parameters */
 function adsr (opts) {
@@ -161,9 +143,9 @@ function beat_play(num_bars, start_beat_time) {
 		const time = finished_beats + start_beat_time;
 		end_time = time + 1/4;
 		if (flag % 4 == 0 || flag % 4 == 1) {
-			tone_set('sine', 130, time, beat/2);
+			tone_set('triangle', 130, time, beat/2);
 		} else if (flag % 4 == 2){
-			tone_set('sine', 220, time, beat/4);
+			tone_set('triangle', 220, time, beat/4);
 		}
 		flag += 1;
 	}
@@ -225,6 +207,7 @@ function scale_3_play(root_note, start_s3p_time, arr){
 	harmony_4_3_play(root_note, time + beat * (i + j + 1) , 3);
 }
 
+/*node_to_arr conncects the 4 harmony root frequencies to their arrays*/
 function node_to_arr(freq) {
 	if (freq == 329) {
 		return arrE;
@@ -237,8 +220,7 @@ function node_to_arr(freq) {
 	}
 }
 
-/*jump performs a pattern of keys*/ 
-//total time is 2 bars
+/*jump1 performs a pattern of keys*/ 
 function jump1(root, start_time) {
 	tone_set('sine', minor_step(root, 0), start_time, beat/4);
 	tone_set('sine', minor_step(root, 4), start_time + beat * 0.5, beat/2);
@@ -250,6 +232,18 @@ function jump1(root, start_time) {
 	tone_set('sine', minor_step(root, 0), start_time + beat * 3.5, beat/2);
 }
 
+
+/*jump2 performs a pattern of keys*/ 
+function jump2(root, start_time, j) {
+	tone_set('sine', minor_step(root, 0), start_time, beat/8);
+	tone_set('sine', minor_step(root, j), start_time + beat * 0.5, beat);
+	tone_set('sine', minor_step(root, 0), start_time + beat * 1.5, beat/8);
+	tone_set('sine', minor_step(root, j), start_time + beat * 2, beat);
+	tone_set('sine', minor_step(root, 0), start_time + beat * 3, beat/8);
+	tone_set('sine', minor_step(root, j), start_time + beat * 3.5, beat);
+}
+
+/*jump3 performs a pattern of keys*/ 
 function jump3(root, start_time) {
 	tone_set('sine', minor_step(root, 0), start_time, beat/4);
 	tone_set('sine', minor_step(root, 4), start_time + beat * 0.5, beat/2);
@@ -264,17 +258,8 @@ function jump3(root, start_time) {
 	tone_set('sine', minor_step(root, 0), start_time, beat/4);
 }
 
-//total time 1 bar
-function jump2(root, start_time, j) {
-	tone_set('sine', minor_step(root, 0), start_time, beat/8);
-	tone_set('sine', minor_step(root, j), start_time + beat * 0.5, beat);
-	tone_set('sine', minor_step(root, 0), start_time + beat * 1.5, beat/8);
-	tone_set('sine', minor_step(root, j), start_time + beat * 2, beat);
-	tone_set('sine', minor_step(root, 0), start_time + beat * 3, beat/8);
-	tone_set('sine', minor_step(root, j), start_time + beat * 3.5, beat);
-}
-
-function intro1(root, start_time) {
+/*intro performs a pattern of keys*/ 
+function intro(root, start_time) {
 	tone_set('sine', minor_step(root, 0), start_time, beat/4);
 	tone_set('sine', minor_step(root, 1), start_time + beat * 1, beat/2);
 	tone_set('sine', minor_step(root, 0), start_time + beat * 2, beat/4);
@@ -282,27 +267,27 @@ function intro1(root, start_time) {
 	tone_set('sine', minor_step(root, 0), start_time + beat * 4 + bar, beat/2);
 }
 
+/*time arrangement for the whole song */
 function whole_song() {
-	root = minor_step(440, get_random(0,6));
-	intro1(root, start_time);
-	intro1(root, start_time + bar * 2 + beat * 4);
+	root = minor_step(440, get_random(-22,22));
+	intro(root, start_time);
+	intro(root, start_time + bar * 2 + beat * 4);
 	jump2(root, start_time + bar * 5 + beat * 8, 3);
 	jump2(minor_step(root,1), start_time + bar * 7 + beat * 8, 3);
 	scale_3_play(start_node, start_time + bar * 5 + beat * 8, node_to_arr(start_node));
 	scale_3_play(base[(start_node_i + 1) % 4], start_time + bar * 7 + beat * 8, node_to_arr(start_node));
-	// scale_3_play(start_node, start_time + bar * 8, node_to_arr(start_node));
-	// scale_3_play(start_node, start_time + bar * 8, node_to_arr(start_node));
 	jump1(root, start_time + bar * 9 + beat * 8);
 	
 }
 
 
+/*starts to play the whole song */
 whole_song();
-beat_play(bar * 11,start_time);
-
-
-
-
-
-end_time += 0.5 * beat;
-
+beat_play(bar * 8 + 5 * beat,start_time);
+createWaveCanvas({ element: 'section', analyser: fft });
+createFrequencyCanvas({
+	element:'section',
+	analyser:fft,
+	scale:5,
+	color:'magenta'
+});
